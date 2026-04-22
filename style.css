@@ -1,0 +1,292 @@
+/* ==========================================
+   RESET & BASE
+   ========================================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #334155;
+  --accent: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.35);
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: #334155;
+  --radius: 12px;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  padding: 20px 16px 40px;
+}
+
+/* ==========================================
+   LAYOUT
+   ========================================== */
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ==========================================
+   HEADER
+   ========================================== */
+header {
+  text-align: center;
+  padding: 12px 0 4px;
+}
+
+header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #818cf8, #6366f1, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.subtitle strong {
+  color: var(--accent);
+}
+
+/* ==========================================
+   STATUS BAR
+   ========================================== */
+.status-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#status {
+  transition: all 0.3s ease;
+}
+
+/* ==========================================
+   KAMERA
+   ========================================== */
+.camera-section {
+  display: flex;
+  justify-content: center;
+}
+
+.camera-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 4/3;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 2px solid var(--border);
+  background: #000;
+  box-shadow:
+    0 0 0 1px var(--accent-glow),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+#webcam {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0; /* Sembunyikan video asli, tampilkan canvas */
+}
+
+#output {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ==========================================
+   INFO PANEL
+   ========================================== */
+.info-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.info-row .label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  min-width: 140px;
+}
+
+.info-row .value {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+#prediction {
+  color: var(--green);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+#classes-list {
+  color: var(--accent);
+}
+
+/* ==========================================
+   CONFIDENCE BAR
+   ========================================== */
+.confidence-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.confidence-wrapper .label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  min-width: 140px;
+}
+
+.confidence-bar {
+  flex: 1;
+  height: 10px;
+  background: var(--surface2);
+  border-radius: 99px;
+  overflow: hidden;
+  min-width: 100px;
+}
+
+.confidence-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 99px;
+  background: var(--green);
+  transition:
+    width 0.3s ease,
+    background-color 0.3s ease;
+}
+
+/* ==========================================
+   VIDEO PLAYER
+   ========================================== */
+.video-section {
+  display: flex;
+  justify-content: center;
+}
+
+#result-video {
+  width: 100%;
+  max-width: 640px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: #000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.3s ease;
+}
+
+/* ==========================================
+   PANDUAN
+   ========================================== */
+.guide {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+
+.guide h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+}
+
+.guide ol {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.guide li {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.guide code {
+  background: var(--surface2);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-family: "Courier New", monospace;
+}
+
+/* ==========================================
+   RESPONSIF
+   ========================================== */
+@media (max-width: 500px) {
+  header h1 {
+    font-size: 1.5rem;
+  }
+
+  .info-row .label,
+  .confidence-wrapper .label {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .confidence-wrapper {
+    flex-wrap: wrap;
+  }
+}
