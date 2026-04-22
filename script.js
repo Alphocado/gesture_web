@@ -6,8 +6,8 @@ const CLASSES_PATH = "models/classes.txt";
 const NORM_PARAMS_PATH = "models/norm_params.json";
 const VIDEO_FOLDER = "videos/";
 
-const BUFFER_SECONDS = 3; // Durasi buffer landmark (harus sama dengan record_data.py)
-const FPS = 30; // Frame per detik estimasi
+const BUFFER_SECONDS = 1.5; // Durasi buffer landmark (harus sama dengan record_data.py)
+const FPS = 24; // Frame per detik estimasi
 const BUFFER_SIZE = BUFFER_SECONDS * FPS; // 90 frame
 const CONFIDENCE_THRESHOLD = 0.7; // Minimal confidence untuk trigger video
 
