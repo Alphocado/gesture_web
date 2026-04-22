@@ -1,0 +1,1163 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InclusiveVision – Penerjemah Bahasa Isyarat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ── RESET & BASE ─────────────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #07090f;
+        --panel: rgba(10, 15, 30, 0.88);
+        --border: rgba(0, 240, 180, 0.18);
+        --cyan: #00f0b4;
+        --cyan-dim: rgba(0, 240, 180, 0.12);
+        --red: #ff4458;
+        --yellow: #f5c842;
+        --text: #e8edf5;
+        --muted: rgba(232, 237, 245, 0.45);
+        --font-ui: "Syne", sans-serif;
+        --font-mono: "IBM Plex Mono", monospace;
+        --radius: 16px;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+      }
+
+      body {
+        font-family: var(--font-ui);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* ── NOISE OVERLAY ─────────────────────────────────────────────────── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+        pointer-events: none;
+      }
+
+      /* ── LAYOUT ────────────────────────────────────────────────────────── */
+      #app {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        grid-template-rows: auto 1fr;
+        gap: 0;
+        z-index: 1;
+      }
+
+      /* ── HEADER ────────────────────────────────────────────────────────── */
+      #header {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 28px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+        backdrop-filter: blur(20px);
+      }
+
+      #header h1 {
+        font-size: 1.25rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        background: linear-gradient(90deg, var(--cyan) 0%, #6affdf 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      #header .subtitle {
+        font-size: 0.72rem;
+        font-family: var(--font-mono);
+        color: var(--muted);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      #model-status {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        padding: 6px 14px;
+        border-radius: 99px;
+        border: 1px solid var(--border);
+        background: var(--cyan-dim);
+        color: var(--cyan);
+        transition: all 0.3s;
+      }
+      #model-status.loading {
+        color: var(--yellow);
+        border-color: rgba(245, 200, 66, 0.3);
+        background: rgba(245, 200, 66, 0.08);
+      }
+      #model-status.error {
+        color: var(--red);
+        border-color: rgba(255, 68, 88, 0.3);
+        background: rgba(255, 68, 88, 0.08);
+      }
+
+      /* ── CAMERA AREA ───────────────────────────────────────────────────── */
+      #camera-wrap {
+        position: relative;
+        overflow: hidden;
+        background: #000;
+      }
+
+      #webcam {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1); /* mirror */
+        display: block;
+      }
+
+      #overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        transform: scaleX(-1);
+        pointer-events: none;
+      }
+
+      /* corner decorations */
+      #camera-wrap::before,
+      #camera-wrap::after {
+        content: "";
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        border-color: var(--cyan);
+        border-style: solid;
+        z-index: 3;
+      }
+      #camera-wrap::before {
+        top: 16px;
+        left: 16px;
+        border-width: 2px 0 0 2px;
+      }
+      #camera-wrap::after {
+        bottom: 16px;
+        right: 16px;
+        border-width: 0 2px 2px 0;
+      }
+
+      /* ── RIGHT PANEL ───────────────────────────────────────────────────── */
+      #side-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 20px;
+        background: var(--panel);
+        border-left: 1px solid var(--border);
+        backdrop-filter: blur(20px);
+        overflow-y: auto;
+      }
+
+      .panel-card {
+        background: rgba(0, 240, 180, 0.04);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+      }
+
+      .panel-card h3 {
+        font-size: 0.65rem;
+        font-family: var(--font-mono);
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--muted);
+        margin-bottom: 14px;
+      }
+
+      /* ── STATE RING ────────────────────────────────────────────────────── */
+      #state-display {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+
+      #ring-wrap {
+        position: relative;
+        width: 110px;
+        height: 110px;
+      }
+
+      #ring-svg {
+        width: 110px;
+        height: 110px;
+        transform: rotate(-90deg);
+      }
+
+      #ring-bg {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.06);
+        stroke-width: 6;
+      }
+      #ring-fill {
+        fill: none;
+        stroke: var(--cyan);
+        stroke-width: 6;
+        stroke-linecap: round;
+        stroke-dasharray: 283; /* 2π × r=45 */
+        stroke-dashoffset: 283;
+        transition:
+          stroke-dashoffset 0.1s linear,
+          stroke 0.3s;
+      }
+
+      #ring-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+      }
+
+      #timer-text {
+        font-family: var(--font-mono);
+        font-size: 1.6rem;
+        font-weight: 500;
+        color: var(--cyan);
+        line-height: 1;
+      }
+      #timer-label {
+        font-size: 0.6rem;
+        font-family: var(--font-mono);
+        color: var(--muted);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      #state-name {
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: var(--text);
+      }
+
+      #state-hint {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--muted);
+        text-align: center;
+        line-height: 1.6;
+      }
+
+      /* ── DETECTED LABEL ────────────────────────────────────────────────── */
+      #detected-card {
+        display: none;
+      }
+      #detected-card.show {
+        display: block;
+      }
+
+      #detected-name {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--cyan);
+        letter-spacing: 0.02em;
+        margin-bottom: 4px;
+      }
+
+      #confidence-bar-wrap {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 99px;
+        overflow: hidden;
+        margin-top: 10px;
+      }
+      #confidence-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--cyan), #6affdf);
+        border-radius: 99px;
+        transition: width 0.4s ease;
+      }
+      #confidence-text {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+
+      /* ── HISTORY ───────────────────────────────────────────────────────── */
+      #history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 160px;
+        overflow-y: auto;
+      }
+      .history-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 7px 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        animation: fadeIn 0.3s ease;
+      }
+      .history-item .h-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+      .history-item .h-conf {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--cyan);
+      }
+
+      /* ── VIDEO OVERLAY ─────────────────────────────────────────────────── */
+      #video-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(5, 8, 18, 0.85);
+        backdrop-filter: blur(12px);
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 20px;
+      }
+      #video-overlay.show {
+        display: flex;
+      }
+
+      #video-overlay .gesture-badge {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--cyan);
+        padding: 6px 16px;
+        border: 1px solid var(--border);
+        border-radius: 99px;
+        background: var(--cyan-dim);
+        animation: pulse 2s infinite;
+      }
+
+      #result-video {
+        max-width: min(720px, 90vw);
+        max-height: 70vh;
+        border-radius: 20px;
+        border: 2px solid var(--border);
+        box-shadow: 0 0 60px rgba(0, 240, 180, 0.15);
+        background: #000;
+      }
+
+      #video-close-hint {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+      }
+
+      /* ── TOAST ─────────────────────────────────────────────────────────── */
+      #toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: rgba(20, 25, 40, 0.95);
+        border: 1px solid var(--border);
+        border-radius: 99px;
+        padding: 10px 24px;
+        font-size: 0.82rem;
+        font-family: var(--font-mono);
+        color: var(--text);
+        z-index: 200;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        backdrop-filter: blur(12px);
+      }
+      #toast.show {
+        transform: translateX(-50%) translateY(0);
+      }
+
+      /* ── SCAN LINE ─────────────────────────────────────────────────────── */
+      @keyframes scanline {
+        0% {
+          top: -2px;
+        }
+        100% {
+          top: 100%;
+        }
+      }
+      #camera-wrap.recording::before,
+      #camera-wrap.recording::after {
+        border-color: var(--red);
+        animation: cornerPulse 0.5s infinite alternate;
+      }
+      @keyframes cornerPulse {
+        from {
+          opacity: 0.4;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .scan-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--cyan),
+          transparent
+        );
+        z-index: 4;
+        animation: scanline 2s linear infinite;
+        pointer-events: none;
+      }
+
+      /* ── HAND INDICATOR ────────────────────────────────────────────────── */
+      #hand-dot {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--muted);
+        z-index: 5;
+        transition: background 0.2s;
+      }
+      #hand-dot.detected {
+        background: var(--cyan);
+        box-shadow: 0 0 8px var(--cyan);
+      }
+
+      /* ── RECORDING BADGE ───────────────────────────────────────────────── */
+      #rec-badge {
+        display: none;
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 68, 88, 0.9);
+        color: #fff;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        padding: 6px 16px;
+        border-radius: 99px;
+        z-index: 5;
+        animation: recPulse 1s ease-in-out infinite alternate;
+      }
+      #rec-badge.show {
+        display: block;
+      }
+      @keyframes recPulse {
+        from {
+          opacity: 0.7;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+
+      /* scrollbar */
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 99px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="app">
+      <!-- HEADER -->
+      <header id="header">
+        <div>
+          <h1>InclusiveVision</h1>
+          <div class="subtitle">Penerjemah Bahasa Isyarat SIBI / BISINDO</div>
+        </div>
+        <div id="model-status" class="loading">⏳ Memuat model...</div>
+      </header>
+
+      <!-- CAMERA -->
+      <div id="camera-wrap">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="scan-line"></div>
+        <div id="hand-dot" title="Deteksi tangan"></div>
+        <div id="rec-badge">● REC</div>
+      </div>
+
+      <!-- SIDE PANEL -->
+      <aside id="side-panel">
+        <!-- State / Ring -->
+        <div class="panel-card">
+          <h3>Status Deteksi</h3>
+          <div id="state-display">
+            <div id="ring-wrap">
+              <svg id="ring-svg" viewBox="0 0 110 110">
+                <circle class="ring-bg" cx="55" cy="55" r="45" id="ring-bg" />
+                <circle cx="55" cy="55" r="45" id="ring-fill" />
+              </svg>
+              <div id="ring-center">
+                <div id="timer-text">3.0</div>
+                <div id="timer-label">detik</div>
+              </div>
+            </div>
+            <div id="state-name">MENUNGGU</div>
+            <div id="state-hint">
+              Tampilkan tangan ke kamera<br />untuk mulai merekam gerakan
+            </div>
+          </div>
+        </div>
+
+        <!-- Detected Gesture -->
+        <div class="panel-card" id="detected-card">
+          <h3>Gesture Terdeteksi</h3>
+          <div id="detected-name">–</div>
+          <div id="confidence-bar-wrap">
+            <div id="confidence-bar"></div>
+          </div>
+          <div id="confidence-text">Kepercayaan: –%</div>
+        </div>
+
+        <!-- History -->
+        <div class="panel-card" style="flex: 1">
+          <h3>Riwayat</h3>
+          <div id="history-list">
+            <div
+              style="
+                font-size: 0.72rem;
+                color: var(--muted);
+                font-family: var(--font-mono);
+              "
+            >
+              Belum ada deteksi...
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- VIDEO OVERLAY -->
+    <div id="video-overlay">
+      <div class="gesture-badge" id="video-label">Gesture</div>
+      <video id="result-video" playsinline></video>
+      <div id="video-close-hint">
+        Video akan tertutup otomatis setelah selesai
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <!-- ── SCRIPTS ──────────────────────────────────────────────────────── -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+
+    <script>
+      // ═══════════════════════════════════════════════════════════════
+      // CONFIG – sesuaikan jika perlu
+      // ═══════════════════════════════════════════════════════════════
+      const CONFIG = {
+        RECORD_SECONDS: 3, // durasi rekaman per gesture
+        TARGET_FPS: 15, // fps target saat merekam
+        MAX_HANDS: 2,
+        PER_HAND: 63, // 21 × 3
+        FEAT_DIM: 126, // 2 × 63
+        CONFIDENCE_MIN: 0.55, // threshold minimal agar dianggap valid
+        COOLDOWN_MS: 1500, // jeda setelah video selesai sebelum bisa detect lagi
+        MODEL_PATH: "model/model.json",
+        LABELS_PATH: "model/labels_array.json",
+        VIDEOS_PATH: "gesture_videos.json",
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      // STATE
+      // ═══════════════════════════════════════════════════════════════
+      const STATE = {
+        LOADING: "loading",
+        IDLE: "idle",
+        RECORDING: "recording",
+        DETECTING: "detecting",
+        PLAYING: "playing",
+        COOLDOWN: "cooldown",
+      };
+
+      let appState = STATE.LOADING;
+      let model = null;
+      let labelsArray = [];
+      let videosMap = {};
+      let handDetected = false;
+
+      let recordBuffer = []; // array of Float32Array(FEAT_DIM)
+      let recordStart = null;
+      let timerRAF = null;
+
+      // ═══════════════════════════════════════════════════════════════
+      // DOM REFS
+      // ═══════════════════════════════════════════════════════════════
+      const elWebcam = document.getElementById("webcam");
+      const elOverlay = document.getElementById("overlay");
+      const elModelStatus = document.getElementById("model-status");
+      const elRingFill = document.getElementById("ring-fill");
+      const elTimerText = document.getElementById("timer-text");
+      const elStateName = document.getElementById("state-name");
+      const elStateHint = document.getElementById("state-hint");
+      const elHandDot = document.getElementById("hand-dot");
+      const elRecBadge = document.getElementById("rec-badge");
+      const elDetectedCard = document.getElementById("detected-card");
+      const elDetectedName = document.getElementById("detected-name");
+      const elConfBar = document.getElementById("confidence-bar");
+      const elConfText = document.getElementById("confidence-text");
+      const elHistoryList = document.getElementById("history-list");
+      const elVideoOverlay = document.getElementById("video-overlay");
+      const elResultVideo = document.getElementById("result-video");
+      const elVideoLabel = document.getElementById("video-label");
+      const elCameraWrap = document.getElementById("camera-wrap");
+      const elToast = document.getElementById("toast");
+      const ctx = elOverlay.getContext("2d");
+
+      // ═══════════════════════════════════════════════════════════════
+      // TOAST
+      // ═══════════════════════════════════════════════════════════════
+      let toastTimer = null;
+      function showToast(msg, duration = 3000) {
+        elToast.textContent = msg;
+        elToast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(
+          () => elToast.classList.remove("show"),
+          duration,
+        );
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // RING / TIMER UI
+      // ═══════════════════════════════════════════════════════════════
+      const CIRCUMFERENCE = 2 * Math.PI * 45; // ≈ 283
+
+      function setRingProgress(ratio) {
+        // ratio 0..1 → fill ring
+        const offset = CIRCUMFERENCE * (1 - ratio);
+        elRingFill.style.strokeDashoffset = offset;
+      }
+
+      function updateUI(state) {
+        elCameraWrap.classList.remove("recording");
+        elRecBadge.classList.remove("show");
+        elHandDot.classList.remove("detected");
+
+        if (state === STATE.LOADING) {
+          elStateName.textContent = "MEMUAT";
+          elStateHint.textContent = "Harap tunggu...";
+          elRingFill.style.stroke = "var(--muted)";
+          setRingProgress(0);
+          elTimerText.textContent = "···";
+        } else if (state === STATE.IDLE) {
+          elStateName.textContent = "MENUNGGU";
+          elStateHint.textContent =
+            "Tampilkan tangan ke kamera\nuntuk mulai merekam gerakan";
+          elRingFill.style.stroke = "var(--muted)";
+          setRingProgress(0);
+          elTimerText.textContent = CONFIG.RECORD_SECONDS.toFixed(1);
+          elTimerText.style.color = "var(--muted)";
+        } else if (state === STATE.RECORDING) {
+          elStateName.textContent = "MEREKAM";
+          elStateHint.textContent = "Pertahankan gerakan selama 3 detik";
+          elRingFill.style.stroke = "var(--red)";
+          elTimerText.style.color = "var(--red)";
+          elCameraWrap.classList.add("recording");
+          elRecBadge.classList.add("show");
+          if (handDetected) elHandDot.classList.add("detected");
+        } else if (state === STATE.DETECTING) {
+          elStateName.textContent = "MENDETEKSI";
+          elStateHint.textContent = "Memproses gesture...";
+          elRingFill.style.stroke = "var(--yellow)";
+          elTimerText.style.color = "var(--yellow)";
+          elTimerText.textContent = "···";
+          setRingProgress(1);
+        } else if (state === STATE.PLAYING) {
+          elStateName.textContent = "MEMUTAR";
+          elStateHint.textContent = "Video sedang diputar";
+          elRingFill.style.stroke = "var(--cyan)";
+          elTimerText.style.color = "var(--cyan)";
+          setRingProgress(1);
+          elTimerText.textContent = "▶";
+          if (handDetected) elHandDot.classList.add("detected");
+        } else if (state === STATE.COOLDOWN) {
+          elStateName.textContent = "ISTIRAHAT";
+          elStateHint.textContent = "Siapkan gerakan berikutnya...";
+          elRingFill.style.stroke = "var(--muted)";
+          setRingProgress(0);
+          elTimerText.textContent = "···";
+          elTimerText.style.color = "var(--muted)";
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // FEATURE EXTRACTION (harus konsisten dengan Python!)
+      // ═══════════════════════════════════════════════════════════════
+      function normalizeHand(landmarks) {
+        // landmarks: array of {x, y, z} (21 titik)
+        const wx = landmarks[0].x,
+          wy = landmarks[0].y,
+          wz = landmarks[0].z;
+        const centered = landmarks.map((lm) => ({
+          x: lm.x - wx,
+          y: lm.y - wy,
+          z: lm.z - wz,
+        }));
+        let scale = 0;
+        for (const lm of centered)
+          scale = Math.max(scale, Math.sqrt(lm.x ** 2 + lm.y ** 2 + lm.z ** 2));
+
+        const out = new Float32Array(CONFIG.PER_HAND);
+        for (let i = 0; i < 21; i++) {
+          out[i * 3] = scale > 0 ? centered[i].x / scale : centered[i].x;
+          out[i * 3 + 1] = scale > 0 ? centered[i].y / scale : centered[i].y;
+          out[i * 3 + 2] = scale > 0 ? centered[i].z / scale : centered[i].z;
+        }
+        return out;
+      }
+
+      function resultsToFeature(multiHandLandmarks) {
+        const feat = new Float32Array(CONFIG.FEAT_DIM);
+        if (!multiHandLandmarks || multiHandLandmarks.length === 0) return feat;
+
+        // sort by wrist.x supaya urutan konsisten
+        const hands = [...multiHandLandmarks]
+          .slice(0, CONFIG.MAX_HANDS)
+          .sort((a, b) => a[0].x - b[0].x);
+
+        for (let i = 0; i < hands.length; i++) {
+          const norm = normalizeHand(hands[i]);
+          feat.set(norm, i * CONFIG.PER_HAND);
+        }
+        return feat;
+      }
+
+      function aggregateBuffer(buffer) {
+        // buffer: array of Float32Array(FEAT_DIM)
+        // return: Float32Array(FEAT_DIM * 2) → mean + std (konsisten dengan Python)
+        const N = buffer.length;
+        const mean = new Float32Array(CONFIG.FEAT_DIM);
+        const std = new Float32Array(CONFIG.FEAT_DIM);
+
+        for (const frame of buffer)
+          for (let i = 0; i < CONFIG.FEAT_DIM; i++) mean[i] += frame[i] / N;
+
+        for (const frame of buffer)
+          for (let i = 0; i < CONFIG.FEAT_DIM; i++) {
+            const d = frame[i] - mean[i];
+            std[i] += (d * d) / N;
+          }
+        for (let i = 0; i < CONFIG.FEAT_DIM; i++) std[i] = Math.sqrt(std[i]);
+
+        const out = new Float32Array(CONFIG.FEAT_DIM * 2);
+        out.set(mean, 0);
+        out.set(std, CONFIG.FEAT_DIM);
+        return out;
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // RECORDING TIMER
+      // ═══════════════════════════════════════════════════════════════
+      function startRecording() {
+        if (appState !== STATE.IDLE) return;
+        appState = STATE.RECORDING;
+        recordBuffer = [];
+        recordStart = performance.now();
+        updateUI(STATE.RECORDING);
+        animateTimer();
+      }
+
+      function animateTimer() {
+        if (appState !== STATE.RECORDING) return;
+        const elapsed = (performance.now() - recordStart) / 1000;
+        const remain = Math.max(0, CONFIG.RECORD_SECONDS - elapsed);
+        const ratio = elapsed / CONFIG.RECORD_SECONDS;
+
+        elTimerText.textContent = remain.toFixed(1);
+        setRingProgress(ratio);
+
+        if (elapsed >= CONFIG.RECORD_SECONDS) {
+          finishRecording();
+          return;
+        }
+        timerRAF = requestAnimationFrame(animateTimer);
+      }
+
+      function finishRecording() {
+        cancelAnimationFrame(timerRAF);
+        appState = STATE.DETECTING;
+        updateUI(STATE.DETECTING);
+        setTimeout(() => runInference(), 50);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // INFERENCE
+      // ═══════════════════════════════════════════════════════════════
+      async function runInference() {
+        if (!model || recordBuffer.length < 3) {
+          showToast("⚠️  Terlalu sedikit frame – coba lagi");
+          goIdle();
+          return;
+        }
+
+        const feat = aggregateBuffer(recordBuffer); // Float32Array(252)
+        const input = tf.tensor2d([Array.from(feat)]); // [1, 252]
+        const output = model.predict(input);
+        const probs = await output.data();
+        input.dispose();
+        output.dispose();
+
+        const maxIdx = probs.indexOf(Math.max(...probs));
+        const conf = probs[maxIdx];
+        const label = labelsArray[maxIdx] ?? "unknown";
+
+        console.log(`Inference → ${label} (${(conf * 100).toFixed(1)}%)`);
+
+        // update detected card
+        elDetectedCard.classList.add("show");
+        elDetectedName.textContent = label.toUpperCase();
+        elConfBar.style.width = `${(conf * 100).toFixed(0)}%`;
+        elConfText.textContent = `Kepercayaan: ${(conf * 100).toFixed(1)}%`;
+
+        // add to history
+        addHistory(label, conf);
+
+        if (conf < CONFIG.CONFIDENCE_MIN) {
+          showToast(`🤷 Gesture tidak dikenali (${(conf * 100).toFixed(0)}%)`);
+          goIdle();
+          return;
+        }
+
+        // play video
+        const videoSrc = videosMap[label];
+        if (!videoSrc) {
+          showToast(`✅ "${label}" – tidak ada video untuk gesture ini`);
+          goIdle();
+          return;
+        }
+        playVideo(label, videoSrc);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // VIDEO PLAYBACK
+      // ═══════════════════════════════════════════════════════════════
+      function playVideo(label, src) {
+        appState = STATE.PLAYING;
+        updateUI(STATE.PLAYING);
+
+        elVideoLabel.textContent = label.toUpperCase();
+        elResultVideo.src = src;
+        elResultVideo.currentTime = 0;
+        elVideoOverlay.classList.add("show");
+
+        elResultVideo.play().catch((e) => {
+          console.warn("Video gagal diputar:", e);
+          showToast("⚠️  Video gagal diputar – periksa path file");
+          closeVideo();
+        });
+
+        elResultVideo.onended = () => closeVideo();
+      }
+
+      function closeVideo() {
+        elResultVideo.pause();
+        elResultVideo.src = "";
+        elVideoOverlay.classList.remove("show");
+        appState = STATE.COOLDOWN;
+        updateUI(STATE.COOLDOWN);
+        setTimeout(() => goIdle(), CONFIG.COOLDOWN_MS);
+      }
+
+      function goIdle() {
+        appState = STATE.IDLE;
+        recordBuffer = [];
+        updateUI(STATE.IDLE);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // HISTORY
+      // ═══════════════════════════════════════════════════════════════
+      const historyData = [];
+      function addHistory(label, conf) {
+        historyData.unshift({ label, conf });
+        if (historyData.length > 6) historyData.pop();
+        elHistoryList.innerHTML = historyData
+          .map(
+            (h) => `
+    <div class="history-item">
+      <span class="h-label">${h.label}</span>
+      <span class="h-conf">${(h.conf * 100).toFixed(0)}%</span>
+    </div>
+  `,
+          )
+          .join("");
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // DRAW LANDMARKS on canvas
+      // ═══════════════════════════════════════════════════════════════
+      const CONNECTIONS = [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [0, 5],
+        [5, 6],
+        [6, 7],
+        [7, 8],
+        [5, 9],
+        [9, 10],
+        [10, 11],
+        [11, 12],
+        [9, 13],
+        [13, 14],
+        [14, 15],
+        [15, 16],
+        [13, 17],
+        [17, 18],
+        [18, 19],
+        [19, 20],
+        [0, 17],
+      ];
+
+      function drawLandmarks(multiHandLandmarks) {
+        ctx.clearRect(0, 0, elOverlay.width, elOverlay.height);
+        if (!multiHandLandmarks) return;
+
+        const W = elOverlay.width,
+          H = elOverlay.height;
+        const isRecording = appState === STATE.RECORDING;
+        const col = isRecording ? "#ff4458" : "#00f0b4";
+
+        for (const hand of multiHandLandmarks) {
+          // connections
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.6;
+          for (const [a, b] of CONNECTIONS) {
+            ctx.beginPath();
+            ctx.moveTo(hand[a].x * W, hand[a].y * H);
+            ctx.lineTo(hand[b].x * W, hand[b].y * H);
+            ctx.stroke();
+          }
+          // dots
+          ctx.globalAlpha = 1;
+          for (const lm of hand) {
+            ctx.beginPath();
+            ctx.arc(lm.x * W, lm.y * H, 4, 0, Math.PI * 2);
+            ctx.fillStyle = col;
+            ctx.fill();
+          }
+          // wrist glow
+          ctx.beginPath();
+          ctx.arc(hand[0].x * W, hand[0].y * H, 8, 0, Math.PI * 2);
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // MEDIAPIPE CALLBACK
+      // ═══════════════════════════════════════════════════════════════
+      function onResults(results) {
+        // sync canvas size
+        elOverlay.width = elWebcam.videoWidth || 640;
+        elOverlay.height = elWebcam.videoHeight || 480;
+
+        const hasHand =
+          results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+        handDetected = hasHand;
+        elHandDot.classList.toggle("detected", hasHand);
+
+        drawLandmarks(results.multiHandLandmarks);
+
+        if (
+          appState === STATE.PLAYING ||
+          appState === STATE.COOLDOWN ||
+          appState === STATE.LOADING
+        )
+          return;
+
+        if (hasHand && appState === STATE.IDLE) {
+          startRecording();
+        }
+
+        if (appState === STATE.RECORDING) {
+          if (!hasHand) {
+            // tangan hilang saat rekam → reset
+            showToast("⚠️  Tangan hilang – ulangi gerakan");
+            goIdle();
+            return;
+          }
+          const feat = resultsToFeature(results.multiHandLandmarks);
+          recordBuffer.push(feat);
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // INIT MEDIAPIPE
+      // ═══════════════════════════════════════════════════════════════
+      async function initMediaPipe() {
+        const hands = new Hands({
+          locateFile: (file) =>
+            `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+        });
+
+        hands.setOptions({
+          maxNumHands: CONFIG.MAX_HANDS,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.6,
+          minTrackingConfidence: 0.5,
+        });
+
+        hands.onResults(onResults);
+
+        const camera = new Camera(elWebcam, {
+          onFrame: async () => {
+            await hands.send({ image: elWebcam });
+          },
+          width: 640,
+          height: 480,
+        });
+
+        await camera.start();
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // LOAD ASSETS (model + labels + videos)
+      // ═══════════════════════════════════════════════════════════════
+      async function loadAssets() {
+        // labels
+        try {
+          const res = await fetch(CONFIG.LABELS_PATH);
+          labelsArray = await res.json();
+          console.log("Labels loaded:", labelsArray);
+        } catch (e) {
+          throw new Error(`Gagal load labels: ${CONFIG.LABELS_PATH}`);
+        }
+
+        // videos map
+        try {
+          const res = await fetch(CONFIG.VIDEOS_PATH);
+          videosMap = await res.json();
+          console.log("Videos map loaded:", videosMap);
+        } catch (e) {
+          console.warn(
+            "gesture_videos.json tidak ditemukan – video tidak akan diputar",
+          );
+          videosMap = {};
+        }
+
+        // TF.js model
+        model = await tf.loadLayersModel(CONFIG.MODEL_PATH);
+        console.log("Model loaded. Input shape:", model.inputs[0].shape);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // BOOT
+      // ═══════════════════════════════════════════════════════════════
+      async function boot() {
+        updateUI(STATE.LOADING);
+
+        try {
+          elModelStatus.textContent = "⏳ Memuat model...";
+          elModelStatus.className = "loading";
+
+          await loadAssets();
+
+          elModelStatus.textContent = "⏳ Menyiapkan kamera...";
+          await initMediaPipe();
+
+          elModelStatus.textContent = `✓ ${labelsArray.length} gesture`;
+          elModelStatus.className = "";
+
+          goIdle();
+          showToast("🚀 Siap! Tunjukkan gerakan ke kamera");
+        } catch (err) {
+          console.error(err);
+          elModelStatus.textContent = "✕ Error";
+          elModelStatus.className = "error";
+          elStateName.textContent = "ERROR";
+          elStateHint.textContent = err.message;
+          showToast("❌ " + err.message, 8000);
+        }
+      }
+
+      boot();
+    </script>
+  </body>
+</html>
