@@ -1,1 +1,23 @@
+# Virtual environment
 gesture_env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Build / distribution (PyInstaller)
+build/
+*.spec
+
+# Folder data mentah (opsional – jika tidak ingin backup CSV)
+# data/
+
+# File sementara dan IDE
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# File environment yang tidak ingin bocor
+.env
