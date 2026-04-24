@@ -12,7 +12,7 @@ dist/
 *.spec
 
 # Folder data mentah (opsional – jika tidak ingin backup CSV)
-# data/
+data/
 
 # File sementara dan IDE
 .vscode/
